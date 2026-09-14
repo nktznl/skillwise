@@ -3,6 +3,19 @@
 Every channel below is queried live. `discover_skills.py` handles the first four;
 the rest are worth reaching for by hand when the automated pass comes back thin.
 
+## 0. Why repository search alone is not enough
+
+GitHub repository search matches a repo's **name, description and topics** — never
+the contents of its subdirectories. So `python topic:agent-skills` returns 2,900
+repos and *none* of them is `trailofbits/skills`, even though that repo ships a
+skill called `modern-python`, because its description reads "Security skills for
+static analysis".
+
+No amount of query tuning fixes this. The only way to find a skill inside a
+monorepo is to open the monorepo and read its file tree — which is why discovery
+resolves candidate repos before ranking, and why the curated indexes below are
+opened in full rather than grepped for matching lines.
+
 ## 1. GitHub repository search — the workhorse
 
 Most skills ship as their own repo, tagged with an ecosystem topic.
@@ -16,6 +29,16 @@ gh search repos "terraform review" --topic=agent-skills --limit 15 --json fullNa
 Topics that carry real signal: `claude-skills`, `agent-skills`,
 `claude-code-skills`, `claude-code-plugin`. Broader topics (`claude`, `ai-agents`)
 mostly return blog-post repos and star-farming lists.
+
+Two constraints shape how these queries are issued. GitHub rejects a query with
+more than **five boolean operators** (HTTP 422), so terms go out in chunks of six;
+and authenticated search allows **30 requests a minute**, which a naive
+one-call-per-query-per-topic-per-sort-order loop exceeds on a normal five-gap run.
+Both failures return empty results rather than errors, so both are surfaced as
+warnings instead of being mistaken for an empty ecosystem.
+
+Both sort orders are used: `stars` finds what the ecosystem settled on, `updated`
+finds good work published last week that has no stars yet.
 
 Works unauthenticated through `https://api.github.com/search/repositories`, at 10
 searches/minute and 60 core calls/hour — enough for one report, not for looping.
@@ -43,6 +66,12 @@ disagree about it.
 - `travisvn/awesome-claude-skills`
 - `ComposioHQ/awesome-claude-skills`
 - `obra/superpowers` — large battle-tested bundle, ships its own marketplace.json
+
+These indexes are read two ways. Lines matching the query give a human-written
+description and a direct pointer. Separately, **every repository they link to is
+collected and opened regardless of the query** — between them they name only
+about 55 distinct repos, someone deliberately curated each one, and it is the only
+route by which a skill inside an unrelated-sounding monorepo becomes reachable.
 
 A candidate appearing in two independent indexes is meaningfully stronger than
 one appearing in either alone; the script scores that corroboration.
@@ -88,6 +117,8 @@ and frequently point at repos that have since been archived or renamed.
 |---|---|---|
 | `gh` absent or logged out | code search returns empty, repo search still works | say code search was unavailable; lean on indexes |
 | 403 from the API | core limit exhausted (60/hr unauthenticated) | authenticate `gh`, or fall back to indexes and web search |
+| 422 from search | more than five boolean operators in one query | terms are chunked; a 422 still raises a warning |
+| Search returns less than usual | 30/min search budget exhausted | wait a minute and re-run; the warning says so |
 | An index README 404s | the repo renamed or changed branch | skip it; the script resolves branches and degrades quietly |
 | Every source thin | the gap may be genuinely uncovered | report it as uncovered and offer `skill-creator` |
 

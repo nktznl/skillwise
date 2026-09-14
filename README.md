@@ -45,15 +45,50 @@ Nothing is written to disk until you name what you want.
 2. **Gaps** — friction is inferred from evidence (a web app with no tests, a
    payments integration with no security review, a monorepo with no navigation
    aids), then turned into search queries.
-3. **Discover** — `discover_skills.py` queries GitHub repository search, GitHub
-   code search for `SKILL.md` files, and the curated indexes, in parallel and
-   live. Results are deduped and ranked on relevance, adoption, freshness,
-   provenance tier, and agreement between independent sources.
+3. **Discover** — three phases, live:
+   - *Candidates*: GitHub topic search by stars **and** by recency, code search
+     for `SKILL.md`, and every repository the curated indexes link to.
+   - *Resolve*: candidate repos are opened and their real `SKILL.md` files read.
+     This is also the existence check — a repo tagged `claude-skills` with no
+     `SKILL.md` is not a skill, and a repo with 84 of them is not one candidate.
+   - *Rank*: each skill is scored on **its own frontmatter description**, the
+     text that decides when it fires, not on the repo blurb.
 4. **Vet** — each finalist's `SKILL.md` is fetched and read. Prompt-injection
    phrasing, remote-code-into-shell, unexplained credential access, outbound data
    flow and hidden unicode are grounds for rejection, not a caveat.
 5. **Install** — on explicit approval only, pinned to a commit, with provenance
    recorded so the copy can be updated later.
+
+### Two ideas that make the results different
+
+**Repository search cannot see inside repositories.** It matches names,
+descriptions and topics only. `python topic:agent-skills` returns ~2,900 repos and
+none of them is `trailofbits/skills` — which ships a skill called `modern-python`
+but describes itself as "Security skills for static analysis". So candidate repos
+are opened and their file trees read, and every repo a curated index links to is
+opened whether or not it matched the query.
+
+**Fit multiplies reputation; it does not add to it.** If reputation were additive,
+every skill inside a 176k-star repo would inherit the same large constant and a
+spreadsheet skill would outrank a purpose-built one on a security query. Here a
+skill with no topical evidence cannot be rescued by its pedigree, and stars are
+divided by the number of skills the repo ships.
+
+## Quality
+
+`evals/` holds ground-truth cases measuring discovery quality, including
+regression guards for defects found during development — a spreadsheet skill
+matching a Python query through its *anti-trigger* clause, twelve CRM connectors
+flooding a release query through the word "automation", and star inheritance
+inside mega-repos.
+
+```bash
+python3 evals/run_eval.py
+```
+
+Reports hit rate, mean reciprocal rank, and forbidden-result violations against
+the live ecosystem — deliberately not against a frozen fixture, since a discovery
+tool that only passes on recorded data is not being tested on its actual job.
 
 ## Why the vetting step is not optional
 

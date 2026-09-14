@@ -1,0 +1,64 @@
+{
+  "note": "Ground truth for discovery quality. `expect` lists skills that a correct run must surface for the query; matching is case-insensitive on repo and skill name. `forbid` lists skills that must NOT appear in the top results - these encode defects that were found and fixed, so a regression fails loudly instead of quietly degrading result quality.",
+  "k": 5,
+  "cases": [
+    {
+      "id": "browser-testing",
+      "queries": ["playwright browser end-to-end testing"],
+      "expect": [{"repo": "anthropics/skills", "name": "webapp-testing"},
+                 {"repo": "lackeyjb/playwright-skill", "name": "playwright-skill"}],
+      "forbid": [{"name": "xlsx"}, {"name": "pptx"}],
+      "why": "canonical high-signal query; forbids the anti-trigger-clause defect where a spreadsheet skill matched a testing query"
+    },
+    {
+      "id": "spreadsheets",
+      "queries": ["excel spreadsheet xlsx formulas"],
+      "expect": [{"repo": "anthropics/skills", "name": "xlsx"}],
+      "forbid": [{"name": "webapp-testing"}],
+      "why": "the reverse direction: a testing skill must not ride star inheritance into a spreadsheet query"
+    },
+    {
+      "id": "pdf",
+      "queries": ["pdf extraction merge forms"],
+      "expect": [{"repo": "anthropics/skills", "name": "pdf"}],
+      "forbid": [],
+      "why": "official skill with an unambiguous name; a miss here means resolution or ranking is broken"
+    },
+    {
+      "id": "slides",
+      "queries": ["powerpoint presentation slide deck pptx"],
+      "expect": [{"repo": "anthropics/skills", "name": "pptx"}],
+      "forbid": [],
+      "why": "same, with a query whose vocabulary does not literally match the skill name"
+    },
+    {
+      "id": "static-analysis",
+      "queries": ["semgrep static analysis security scanning"],
+      "expect": [{"repo": "trailofbits/skills", "name": "semgrep"}],
+      "forbid": [],
+      "why": "requires resolving one skill out of an 84-skill monorepo - the defect where only the first SKILL.md was ever read"
+    },
+    {
+      "id": "mcp",
+      "queries": ["building an MCP server model context protocol"],
+      "expect": [{"repo": "anthropics/skills", "name": "mcp-builder"}],
+      "forbid": [],
+      "why": "acronym-heavy query; tests that short terms survive stopword filtering"
+    },
+    {
+      "id": "python-tooling",
+      "queries": ["modern python tooling uv ruff type checking"],
+      "expect": [{"repo": "trailofbits/skills", "name": "modern-python"}],
+      "forbid": [],
+      "why": "second monorepo resolution target, different vocabulary"
+    },
+    {
+      "id": "generic-noise",
+      "queries": ["release automation versioning"],
+      "expect": [],
+      "forbid": [{"name": "slack-automation"}, {"name": "discord-automation"},
+                 {"name": "jira-automation"}, {"name": "hubspot-automation"}],
+      "why": "the generic-term flood: 'automation' alone once pulled twelve unrelated CRM connectors into the top results"
+    }
+  ]
+}
