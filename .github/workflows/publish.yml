@@ -1,0 +1,37 @@
+# Publishing without a long-lived token.
+#
+# npm now blocks 2FA-bypass granular access tokens from publishing directly, and
+# removes the capability outright in January 2027. Trusted publishing (OIDC) is
+# the replacement: GitHub Actions mints a short-lived identity token per run and
+# npm verifies it, so there is no publish secret to leak or rotate.
+#
+# The first release still has to be published by a human with real 2FA, because a
+# trusted publisher is configured on a package that already exists. After that,
+# push a tag and this takes over.
+name: publish
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # required: lets the runner mint the OIDC token npm verifies
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      # Trusted publishing needs npm 11.5.1+, newer than what ships with Node 24.
+      - run: npm install -g npm@latest
+      - name: Check the package parses and the CLI runs
+        run: |
+          for f in bin/*.js src/*.js evals/*.js; do node --check "$f"; done
+          node bin/skillwise.js --help > /dev/null
+      - run: npm publish

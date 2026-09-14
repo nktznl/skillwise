@@ -1,0 +1,22 @@
+# The eval suite queries the live ecosystem on purpose, so it is scheduled rather
+# than gating merges: a failure here can mean the ranking regressed, or simply
+# that GitHub rate-limited the run. Read the output before believing it.
+name: eval
+
+on:
+  schedule: [{ cron: '0 6 * * 1' }]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm run eval
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

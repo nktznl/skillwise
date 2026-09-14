@@ -1,0 +1,27 @@
+name: check
+
+on:
+  push: { branches: [main] }
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Syntax and manifests
+        run: |
+          for f in bin/*.js src/*.js evals/*.js; do node --check "$f"; done
+          node -e "JSON.parse(require('fs').readFileSync('package.json'))"
+          node -e "JSON.parse(require('fs').readFileSync('.claude-plugin/marketplace.json'))"
+          node -e "JSON.parse(require('fs').readFileSync('.claude-plugin/plugin.json'))"
+          node -e "JSON.parse(require('fs').readFileSync('evals/cases.json'))"
+      - name: CLI runs
+        run: node bin/skillwise.js --help > /dev/null
+      - name: Offline unit checks
+        run: node evals/unit.js
