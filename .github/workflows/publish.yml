@@ -57,6 +57,11 @@ jobs:
       # the workflow, not a secret; the token itself is never printed.
       - name: Show the identity this workflow presents to npm
         run: |
+          # Trusted publishing needs npm 11.5.1+. Below that npm does not attempt
+          # the OIDC token exchange at all - and provenance signing still works,
+          # which makes the logs look like OIDC is fine when it was never tried.
+          echo "  npm                $(npm --version)  ($(which npm))"
+          echo "  node               $(node --version)"
           RESPONSE=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm:registry.npmjs.org")
           node -e '
