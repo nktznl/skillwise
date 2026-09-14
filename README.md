@@ -136,6 +136,43 @@ balance against the live ecosystem — deliberately not against a frozen fixture
 since a discovery tool that only passes on recorded data is not being tested on
 its actual job.
 
+## Releasing
+
+The working tree has to be clean first - `npm version` refuses otherwise, and
+that refusal is doing you a favour.
+
+```bash
+npm test                 # offline: logic, both directions of the risk scan
+npm run eval             # optional, hits the live ecosystem
+
+npm version patch        # bumps package.json, commits, and tags in one step
+git push && git push --tags
+```
+
+Pushing the tag is what publishes. The workflow checks that the tag and
+`package.json` agree, skips silently if that version is already on the registry,
+and otherwise publishes through OIDC - no token anywhere.
+
+Which bump: `patch` for fixes and ranking tweaks, `minor` for a new command or
+flag, `major` for a change that breaks someone's script - a renamed flag, a
+different `--json` shape, or a dropped Node version.
+
+A release published this way carries a provenance attestation linking it to the
+commit and workflow that built it. Check one with:
+
+```bash
+npm view skillwise dist.attestations
+```
+
+Nothing there means that version was published by hand.
+
+## Updating your own copy
+
+```bash
+npx skillwise@latest     # npx caches aggressively; @latest forces a fresh fetch
+npx skills update        # updates the skill copy, project and global
+```
+
 ## Requirements
 
 Node 18.17+. An authenticated [`gh`](https://cli.github.com) unlocks GitHub code
