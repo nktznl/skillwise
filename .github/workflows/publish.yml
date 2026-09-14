@@ -34,4 +34,29 @@ jobs:
         run: |
           for f in bin/*.js src/*.js evals/*.js; do node --check "$f"; done
           node bin/skillwise.js --help > /dev/null
-      - run: npm publish
+
+      # A tag naming a different version than package.json is how a release ends
+      # up published under a number nobody expected. `npm version` keeps the two
+      # in step; this catches the times it was done by hand.
+      - name: Tag and package.json must agree
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $PKG"
+            exit 1
+          fi
+
+      # Re-running a release should be boring. A version already on the registry
+      # is a finished job, not a failure - publishing is not idempotent, so the
+      # check has to be.
+      - name: Publish if this version is new
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          NAME=$(node -p "require('./package.json').name")
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$NAME@$VERSION is already on the registry - nothing to do."
+            exit 0
+          fi
+          npm publish
