@@ -10,9 +10,20 @@ Works with Claude Code, the Claude Agent SDK, and any agent that supports the
 
 ## Install
 
+Inside Claude Code:
+
 ```
 /plugin marketplace add nktznl/suggest-skill
+```
+
+```
 /plugin install skill-scout@skill-scout
+```
+
+Or from a terminal:
+
+```bash
+claude plugin marketplace add nktznl/suggest-skill && claude plugin install skill-scout@skill-scout
 ```
 
 Or vendor the skill directly:

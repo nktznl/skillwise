@@ -1,0 +1,13 @@
+{
+  "name": "skill-scout",
+  "description": "Profiles the current project, searches the live Agent Skills ecosystem, vets candidates for safety, and installs the ones you approve",
+  "version": "0.1.0",
+  "author": {
+    "name": "Nikita Zanella",
+    "url": "https://github.com/nktznl"
+  },
+  "homepage": "https://github.com/nktznl/suggest-skill",
+  "repository": "https://github.com/nktznl/suggest-skill",
+  "license": "MIT",
+  "keywords": ["agent-skills", "discovery", "security", "vetting", "claude-code"]
+}
