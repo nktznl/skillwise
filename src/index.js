@@ -35,8 +35,9 @@ function mergeInto (map, entry) {
   if (!cur.topics?.length) cur.topics = entry.topics ?? []
 }
 
-export async function discover (queries, { limit = 12, warnings = [] } = {}) {
+export async function discover (queries, { limit = 12, warnings = [], onProgress } = {}) {
   const warn = (m) => { if (!warnings.includes(m)) warnings.push(m) }
+  const say = (m) => onProgress?.(m)
   const terms = termsOf(queries)
   const authenticated = await hasGh()
 
@@ -46,6 +47,7 @@ export async function discover (queries, { limit = 12, warnings = [] } = {}) {
     ecosystemShelf({ warn }),
     ...INDEX_REPOS.map((r) => indexShelf(r, { warn }))
   ]
+  say(`searching ${channels.length} channels`)
   const results = await Promise.all(channels.map((p) => p.catch(() => [])))
 
   const candidates = new Map()
@@ -66,10 +68,12 @@ export async function discover (queries, { limit = 12, warnings = [] } = {}) {
   }
 
   const density = await loadDensity()
+  say(`${candidates.size} repositories to consider`)
   const { skills, coverage } = await resolveAll([...candidates.values()], terms,
-    { authenticated, density, warn })
+    { authenticated, density, warn, onProgress })
   await saveDensity(density)
 
+  say(`ranking ${skills.length} skills`)
   const ranked = rankByGap(skills, queries, limit)
   return {
     authenticated,
@@ -77,6 +81,7 @@ export async function discover (queries, { limit = 12, warnings = [] } = {}) {
     coverage: { ...coverage, skillsRelevant: ranked.candidates.length },
     warnings,
     unanswered: ranked.unanswered,
+    squeezed: ranked.squeezed,
     candidates: ranked.candidates
   }
 }

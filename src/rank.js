@@ -124,7 +124,12 @@ export function rankByGap (skills, queries, limit) {
   }
 
   const unanswered = perGap.filter((g) => !g.hits.length).map((g) => g.query)
-  return { candidates: out.sort((a, b) => b.score - a.score), unanswered }
+  // A gap that had answers but lost its slot to the limit is neither answered
+  // nor uncovered, and silently dropping it is the one thing the report must
+  // not do - it is exactly the gap the user still has.
+  const shown = new Set(out.map((s) => s.answersGap))
+  const squeezed = perGap.filter((g) => g.hits.length && !shown.has(g.query)).map((g) => g.query)
+  return { candidates: out.sort((a, b) => b.score - a.score), unanswered, squeezed }
 }
 
 /** Within a repo the frontmatter name is a skill's identity, not its path:

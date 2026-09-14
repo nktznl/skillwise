@@ -10,10 +10,7 @@ import { createRequire } from 'node:module'
 // reports odd behaviour, the first question is always which version they ran.
 const { version: VERSION } = createRequire(import.meta.url)('../package.json')
 
-const NO_COLOR = process.env.NO_COLOR || !process.stdout.isTTY
-const c = (code) => (s) => (NO_COLOR ? String(s) : `\x1b[${code}m${s}\x1b[0m`)
-const bold = c(1); const dim = c(2); const red = c(31); const green = c(32)
-const yellow = c(33); const blue = c(34); const cyan = c(36)
+import { bold, dim, red, green, yellow, blue, cyan, magenta, wrap, truncate, rule, width, progress } from '../src/ui.js'
 
 const HELP = `
 ${bold('skillwise')} ${dim('v' + VERSION)} - find the Agent Skills your project is missing, and audit them before you trust them
@@ -25,7 +22,7 @@ ${bold('Usage')}
 
 ${bold('Options')}
   -q, --query <text>    search for this instead of the derived gaps (repeatable)
-  -l, --limit <n>       how many candidates to return (default 10)
+  -l, --limit <n>       how many candidates to return (default: one per gap, plus two)
   -p, --path <path>     which SKILL.md to audit, in a repo that ships several
   -C, --cwd <dir>       project directory to profile (default: current)
       --json            machine-readable output
@@ -39,12 +36,12 @@ ${bold('Notes')}
 `
 
 function parseArgs (argv) {
-  const opts = { queries: [], limit: 10, json: false, cwd: process.cwd() }
+  const opts = { queries: [], limit: null, json: false, cwd: process.cwd() }
   const rest = []
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '-q' || a === '--query') opts.queries.push(argv[++i])
-    else if (a === '-l' || a === '--limit') opts.limit = Number(argv[++i]) || 10
+    else if (a === '-l' || a === '--limit') opts.limit = Number(argv[++i]) || null
     else if (a === '-p' || a === '--path') opts.path = argv[++i]
     else if (a === '-C' || a === '--cwd') opts.cwd = argv[++i]
     else if (a === '--json') opts.json = true
@@ -59,88 +56,120 @@ function parseArgs (argv) {
 const plural = (n, s) => `${n} ${s}${n === 1 ? '' : 's'}`
 
 function printProfile (p) {
-  const line = (label, value) => value && console.log(`  ${dim(label.padEnd(12))} ${value}`)
-  console.log(bold('\nProject'))
-  line('path', p.root)
-  line('files', String(p.fileCount))
-  line('languages', p.languages.join(', '))
-  line('frameworks', p.frameworks.join(', '))
-  line('testing', p.testing.join(', ') || red('none detected'))
-  line('infra', p.infra.join(', '))
-  line('data', p.data.join(', '))
-  line('cloud', p.cloud.join(', '))
-  line('ai/ml', p.aiMl.join(', '))
-  line('installed', p.existingSkills.join(', '))
+  const facts = [p.languages.slice(0, 4).join(', '), p.frameworks.join(', '),
+    p.data.join(', '), p.cloud.join(', '), p.infra.join(', '), p.aiMl.join(', ')]
+    .filter(Boolean).join(' \u00b7 ')
+
   const missing = []
   if (!p.signals.hasTests) missing.push('no tests')
   if (!p.signals.hasCi) missing.push('no CI')
   if (!p.agentSetup.claudeMd && !p.agentSetup.agentsMd) missing.push('no agent context file')
-  if (missing.length) line('gaps', yellow(missing.join(' · ')))
+  if (p.signals.isMonorepo) missing.push('monorepo')
+
+  console.log('\n' + rule(bold(p.root.replace(process.env.HOME ?? '~~', '~'))))
+  if (facts) console.log('  ' + wrap(facts, 2))
+  console.log(dim(`  ${p.fileCount} files`) + (missing.length ? dim(' \u00b7 ') + yellow(missing.join(' \u00b7 ')) : ''))
+  if (p.existingSkills.length) {
+    console.log(dim('  already installed: ' + truncate(p.existingSkills.join(', '), width() - 22)))
+  }
 }
 
-function printCandidate (s, i, installed) {
+function adoptionOf (g) {
+  if (g.installs > 0) return `${g.installs.toLocaleString()} installs`
+  if (!g.stars) return 'no adoption data'
+  const k = g.stars >= 1000 ? `${Math.round(g.stars / 1000)}k` : String(g.stars)
+  return g.skillsInRepo > 1 ? `${k}\u2605 across ${g.skillsInRepo} skills` : `${k}\u2605`
+}
+
+function printCandidate (s, index, installed, showCommands) {
   const g = s.signals
   const tier = g.tier === 'official' ? green('official') : g.tier === 'curated' ? blue('curated') : dim('community')
-  const adoption = g.installs > 0
-    ? `${g.installs.toLocaleString()} installs`
-    : g.stars ? `${g.stars.toLocaleString()}★ across ${plural(g.skillsInRepo, 'skill')}` : 'no adoption data'
-  const age = g.monthsSincePush == null ? 'unknown' : g.monthsSincePush < 1 ? 'this month' : `${Math.round(g.monthsSincePush)}mo ago`
-  const dup = installed.has(s.name) ? yellow('  ALREADY INSTALLED') : ''
+  const age = g.monthsSincePush == null
+    ? 'age unknown'
+    : g.monthsSincePush < 1 ? 'updated this month' : `updated ${Math.round(g.monthsSincePush)}mo ago`
+  const dup = installed.has(s.name) ? '  ' + yellow('already installed') : ''
 
-  const gap = s.answersGap ? dim(`  answers: ${s.answersGap}`) : ''
-  console.log(`\n${bold(`${i + 1}. ${s.name}`)}  ${dim(s.repo)}  [${tier}]${dup}`)
-  if (gap) console.log(gap)
-  console.log(`   ${s.description.replace(/\s+/g, ' ').slice(0, 160)}`)
-  console.log(dim(`   ${adoption} · updated ${age} · ${s.license || 'no license'} · fit ${s.fit}`))
-  console.log(dim(`   audit:   npx skillwise audit ${s.repo} --path ${s.skillPath}`))
-  console.log(dim(`   install: npx skills add ${s.repo} --skill ${s.skillId}`))
+  console.log(`\n ${dim(String(index).padStart(2))}  ${bold(s.name)}  ${tier}${dup}`)
+  console.log('     ' + wrap(truncate(s.description, 340), 5))
+  console.log(dim(`     ${s.repo} \u00b7 ${adoptionOf(g)} \u00b7 ${age} \u00b7 ${s.license || 'no license'}`))
+  if (showCommands) console.log(dim(`     npx skillwise audit ${s.repo} --path ${s.skillPath}`))
+}
+
+/** Group results under the gap each one answers.
+ *
+ *  These are not search results, they are answers to specific things this
+ *  project lacks - and a flat list buries that, which is the only argument the
+ *  report actually makes. */
+function printResults (result, installed, showCommands) {
+  const cov = result.coverage
+  console.log('\n' + rule(bold('Recommended')))
+  console.log(dim(`  searched ${cov.reposFound.toLocaleString()} repositories \u00b7 ` +
+    `indexed ${cov.skillsSeen.toLocaleString()} skills \u00b7 read ${cov.skillsRead}`) +
+    (result.authenticated ? '' : yellow('  \u00b7 gh not authenticated, coverage reduced')))
+
+  const byGap = new Map()
+  for (const c of result.candidates) byGap.set(c.answersGap ?? null, [...(byGap.get(c.answersGap ?? null) ?? []), c])
+
+  let n = 0
+  for (const [gap, items] of byGap) {
+    console.log('\n  ' + (gap ? magenta('\u25b8 ') + gap : dim('\u25b8 also worth knowing about')))
+    for (const c of items) printCandidate(c, ++n, installed, showCommands)
+  }
+
+  if (result.unanswered?.length || result.squeezed?.length) {
+    console.log('\n' + rule(bold('Not covered')))
+    for (const q of result.unanswered ?? []) {
+      console.log(`  ${yellow('\u25b8')} ${q}  ${dim('nothing credible found')}`)
+    }
+    for (const q of result.squeezed ?? []) {
+      console.log(`  ${yellow('\u25b8')} ${q}  ${dim('candidates exist, cut by --limit')}`)
+    }
+  }
+  for (const w of result.warnings) console.log('\n' + yellow('!') + '  ' + wrap(w, 3))
 }
 
 async function cmdSuggest (opts) {
   const profile = await profileProject(opts.cwd)
   const derived = deriveQueries(profile)
   const queries = opts.queries.length ? opts.queries : derived.map((g) => g.query)
+  // Default to covering every gap: a fixed limit silently drops the last ones,
+  // and an unanswered gap the user cannot see is the failure mode here.
+  const limit = opts.limit ?? queries.length + 2
   if (!queries.length) {
     console.error('Nothing to search for: this directory looks empty. Pass --query to search anyway.')
     process.exit(1)
   }
 
-  if (!opts.json) {
-    printProfile(profile)
-    console.log(bold('\nLooking for'))
-    for (const g of (opts.queries.length ? queries.map((q) => ({ query: q, why: 'requested' })) : derived)) {
-      console.log(`  ${g.query}  ${dim(`(${g.why})`)}`)
-    }
-    process.stderr.write(dim('\nsearching the live ecosystem…\n'))
-  }
-
-  const result = await discover(queries, { limit: opts.limit })
-  const installed = new Set(profile.existingSkills)
-
   if (opts.json) {
+    const result = await discover(queries, { limit })
     console.log(JSON.stringify({ profile, derivedQueries: derived, ...result }, null, 2))
     return
   }
 
-  const cov = result.coverage
-  console.log(bold(`\nFound ${result.candidates.length} candidates`) +
-    dim(`  (${cov.reposFound} repos seen, ${cov.reposOpened} opened, ${cov.skillsSeen} skills indexed, ${cov.skillsRead} read)`))
-  if (!result.authenticated) console.log(dim('  gh not authenticated - coverage reduced'))
-  result.candidates.forEach((s, i) => printCandidate(s, i, installed))
+  console.log(bold('\nskillwise ') + dim('v' + VERSION))
+  printProfile(profile)
+  console.log('\n' + rule(bold('Looking for')))
+  const gaps = opts.queries.length ? queries.map((q) => ({ query: q, why: 'you asked' })) : derived
+  for (const g of gaps) console.log(`  ${magenta('\u25b8')} ${g.query}  ${dim(`(${g.why})`)}`)
 
-  if (result.unanswered?.length) {
-    console.log(bold('\nNothing credible found for'))
-    for (const q of result.unanswered) console.log(`  ${yellow(q)}`)
-    console.log(dim('  No skill covers this. Worth writing one, or handling it directly.'))
+  // Ten seconds of silence reads as a hang, so the spinner reports the phase.
+  const spin = progress()
+  spin.start('searching the live ecosystem')
+  let result
+  try {
+    result = await discover(queries, { limit, onProgress: (m) => spin.update(m) })
+  } finally {
+    spin.stop()
   }
-  for (const w of result.warnings) console.log(yellow(`\n!  ${w}`))
-  if (interactive() && !opts.noInstall && result.candidates.length) {
-    await offerInstall(result.candidates, installed)
-  } else {
-    console.log(dim(`
-Nothing here is vetted yet. Run the audit before you install: a SKILL.md is
-instructions for your agent, and the only thing that makes one safe is reading it.
-`))
+
+  const installed = new Set(profile.existingSkills)
+  const canInstall = interactive() && !opts.noInstall && result.candidates.length > 0
+  printResults(result, installed, !canInstall)
+
+  if (canInstall) await offerInstall(result.candidates, installed)
+  else if (result.candidates.length) {
+    console.log(dim('\n  Nothing here is vetted yet. A SKILL.md is instructions for your agent,'))
+    console.log(dim('  and the only thing that makes one safe is reading it.\n'))
   }
 }
 
@@ -162,11 +191,11 @@ async function offerInstall (candidates, installed) {
   if (!selectable.length) return
 
   const picked = await checkbox(bold('\nWhich of these should be audited and installed?'), selectable, {
-    render: (s) => `${bold(s.name)} ${dim(s.repo)}\n${dim(s.description.replace(/\s+/g, ' ').slice(0, 88))}`
+    render: (s) => `${bold(s.name)} ${dim(s.repo)}\n${dim(truncate(s.description, width() - 6))}`
   })
   if (!picked?.length) { console.log(dim('\nNothing selected.')); return }
 
-  console.log(dim(`\nReading ${plural(picked.length, 'SKILL.md')} before anything is installed…`))
+  console.log(dim(`\nReading ${picked.length} SKILL.md ${picked.length === 1 ? 'file' : 'files'} before anything is installed…`))
   const audits = await Promise.all(picked.map((s) =>
     auditSkill(s.repo, s.skillPath).then((a) => ({ s, a })).catch(() => ({ s, a: { error: 'unreadable' } }))))
 

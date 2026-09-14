@@ -81,7 +81,8 @@ async function openRepo (cand, opts) {
   return paths.length && !cand.archived ? { cand, branch, paths } : null
 }
 
-export async function resolveAll (candidates, terms, { authenticated, density, warn } = {}) {
+export async function resolveAll (candidates, terms, { authenticated, density, warn, onProgress } = {}) {
+  const say = (m) => onProgress?.(m)
   const treeBudget = authenticated ? 80 : 8
   const bodyBudget = authenticated ? 110 : 25
   if (!authenticated) {
@@ -106,7 +107,13 @@ export async function resolveAll (candidates, terms, { authenticated, density, w
   }
 
   const shortlist = [...candidates].sort((a, b) => priority(b) - priority(a)).slice(0, treeBudget)
-  const trees = (await Promise.all(shortlist.map((c) => openRepo(c, { warn }).catch(() => null)))).filter(Boolean)
+  say(`opening ${shortlist.length} repositories`)
+  let opened = 0
+  const trees = (await Promise.all(shortlist.map((c) =>
+    openRepo(c, { warn }).catch(() => null).then((r) => {
+      if (++opened % 10 === 0) say(`opening repositories (${opened}/${shortlist.length})`)
+      return r
+    })))).filter(Boolean)
   for (const t of trees) if (density) density[t.cand.repo] = t.paths.length
 
   const targets = []
@@ -126,6 +133,7 @@ export async function resolveAll (candidates, terms, { authenticated, density, w
   let chosen = targets.filter((t) => t.weight > 0).slice(0, bodyBudget)
   if (!chosen.length) chosen = targets.slice(0, Math.min(bodyBudget, 20))
 
+  say(`reading ${chosen.length} SKILL.md files`)
   const skills = (await Promise.all(
     chosen.map((t) => readSkill(t.cand, t.branch, t.path, t.total).catch(() => null))
   )).filter(Boolean)
