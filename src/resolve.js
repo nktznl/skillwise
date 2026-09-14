@@ -46,6 +46,9 @@ async function readSkill (cand, branch, path, totalSkills) {
   if (!name && !description) return null
   return {
     name,
+    // The installer addresses a skill by its directory, not its display name:
+    // frontmatter names contain spaces and capitals ("Stripe Payments").
+    skillId: path.includes('/') ? path.split('/').at(-2) : name,
     repo: cand.repo,
     skillPath: path,
     url: `https://github.com/${cand.repo}/blob/${branch}/${path}`,

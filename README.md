@@ -31,11 +31,27 @@ whether it ships executable scripts, and a pattern scan for the things that
 matter: remote code piped into a shell, credential reads, outbound data,
 prompt-injection phrasing, hidden unicode.
 
-Install what you choose with the ecosystem installer:
+### Choosing what to install
+
+When the report is done, `suggest` offers the candidates as a checklist. Picking
+some does not install them: it reads each one's SKILL.md first and shows what it
+found - length, licence, tool permissions, and anything the pattern scan raised -
+and only then asks where to put them.
+
+That order is the point. A checkbox that installed on the next keypress would
+undercut the one thing this tool insists on, which is that nobody should add a
+stranger's instructions to their agent without seeing what they say. Anything
+flagged high-severity takes a second, explicit confirmation.
+
+Install happens through the ecosystem installer, addressed to the specific skill
+rather than the whole repository - `trailofbits/skills` ships 84 of them:
 
 ```bash
-npx skills add <owner/repo>
+npx skills add <owner/repo> --skill <skill>
 ```
+
+Piping the output, passing `--json`, or `--no-install` skips the prompt entirely,
+so the tool stays usable in scripts and CI.
 
 ## Why the audit exists
 

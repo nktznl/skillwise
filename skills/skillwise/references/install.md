@@ -3,6 +3,15 @@
 Only after the user names what they want. Approval of the report is not approval
 to write files.
 
+## The installer bridges the two conventions
+
+`npx skills add` writes the skill to `.agents/skills/<name>/` - the cross-agent
+location - and then symlinks `.claude/skills/<name>` to it, so Claude Code picks
+it up without a second copy. Installs made before that bridging existed sit in
+`.agents/skills/` alone and are invisible to Claude Code; if a skill is installed
+but never fires, check for the missing symlink before assuming the skill is at
+fault.
+
 ## Where skills live
 
 | Target | Path | Use when |
