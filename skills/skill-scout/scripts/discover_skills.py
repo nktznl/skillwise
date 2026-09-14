@@ -158,6 +158,19 @@ def search_code(query):
 STOPWORDS = {"github", "com", "http", "https", "www", "skill", "skills", "claude",
              "code", "agent", "agents", "the", "and", "for", "with", "your", "use"}
 
+# Words that are real but so common in this ecosystem that a match on one alone
+# means nothing - every CRM connector is an "automation". They still count toward
+# relevance; they just cannot be the sole reason a candidate makes the list.
+GENERIC = {"automation", "automate", "integration", "integrations", "management",
+           "platform", "workflow", "workflows", "tool", "tools", "api", "app",
+           "apps", "service", "services", "data", "file", "files", "project"}
+
+
+def discriminating(hits):
+    """A hit list earns a place only if it is specific: two distinct terms, or
+    one term that is not ecosystem boilerplate."""
+    return len(set(hits)) >= 2 or any(h not in GENERIC for h in hits)
+
 
 def term_hits(terms, text):
     """Match on word starts: 'action' should find 'actions', but not 'reactions'."""
@@ -190,7 +203,7 @@ def scan_index(repo, queries):
         # URLs carry no topical meaning here and would match "github" on every row
         low = re.sub(r"https?://\S+", " ", line).lower()
         hits = term_hits(terms, low)
-        if not hits:
+        if not discriminating(hits):
             continue
         m = LINK_RE.search(line)
         if not m:
@@ -247,6 +260,8 @@ def score(c, queries):
         "tier": {3: "official", 2: "curated-index", 1: "community"}[c["tier"]],
         "archived": c.get("archived", False),
     }
+    if c.get("stars_disclaimer"):
+        c["signals"]["stars_note"] = c["stars_disclaimer"]
     return c
 
 
@@ -263,8 +278,16 @@ def enrich(candidates):
                 d = None
             if d and d.get("full_name"):
                 meta[futs[f]] = d
+    index_set = set(INDEX_REPOS)
     for c in candidates:
         d = meta.get(c["repo"])
+        if d and c["repo"] in index_set and c.get("skill_path"):
+            # Popularity belongs to the list, not to one entry inside it.
+            c["stars"] = 0
+            c["pushed_at"] = d.get("pushed_at")
+            c["license"] = (d.get("license") or {}).get("spdx_id") or ""
+            c["stars_disclaimer"] = f"listed inside {c['repo']}; stars not attributable"
+            continue
         if d:
             c["stars"] = d.get("stargazers_count", 0)
             c["pushed_at"] = d.get("pushed_at")
@@ -308,7 +331,11 @@ def discover(queries, limit):
             except Exception:
                 pass
     results = enrich(results)
-    return dedupe([score(c, queries) for c in results])[:limit]
+    scored = [score(c, queries) for c in results]
+    terms = terms_of(queries)
+    scored = [c for c in scored if discriminating(
+        term_hits(terms, f"{c['name']} {c['description']} {' '.join(c.get('topics', []))}".lower()))]
+    return dedupe(scored)[:limit]
 
 
 # ---------------------------------------------------------------- inspect
