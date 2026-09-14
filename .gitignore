@@ -1,4 +1,8 @@
 .DS_Store
 __pycache__/
 *.pyc
-skill-scout-cache/
+node_modules/
+
+# local install artefacts from `npx skills add`, not source
+.agents/
+skills-lock.json

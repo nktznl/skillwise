@@ -3,6 +3,30 @@
 Every channel below is queried live. `discover_skills.py` handles the first four;
 the rest are worth reaching for by hand when the automated pass comes back thin.
 
+## 1. The skills.sh registry — highest recall
+
+```
+GET https://skills.sh/api/search?q=<term>
+```
+
+Returns up to 100 entries as `{id, skillId, name, installs, source}`, where `id`
+is `owner/repo/skill`. Two things make it the first place to look: it resolves to
+the **skill** rather than the repository, and `installs` counts adoption of that
+skill rather than popularity of whatever repo hosts it.
+
+It also reaches skills the GitHub channels structurally cannot. `supabase/agent-skills`
+carries ~400k installs under the topics `ai, ai-agents, skills, supabase` - none
+of the ecosystem topics a topic query filters on. Seven of the top eight results
+for "supabase" are invisible to topic search.
+
+What it does not return is **descriptions**, so ranking still has to read the real
+SKILL.md from GitHub. Treat it as a recall and adoption channel, not a ranking one.
+
+Caveats worth knowing: the endpoint is undocumented and may change without
+notice, `count` is 100 for essentially every query so it is a cap rather than a
+relevance measure, and results have been inconsistent between runs. It is one
+channel among several, never the foundation.
+
 ## 0. Why repository search alone is not enough
 
 GitHub repository search matches a repo's **name, description and topics** — never

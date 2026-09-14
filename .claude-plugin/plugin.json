@@ -1,13 +1,19 @@
 {
-  "name": "skill-scout",
-  "description": "Profiles the current project, searches the live Agent Skills ecosystem, vets candidates for safety, and installs the ones you approve",
+  "name": "skillwise",
+  "description": "Profiles the current project, searches the live Agent Skills ecosystem, audits candidates for safety, and installs the ones you approve",
   "version": "0.1.0",
   "author": {
     "name": "Nikita Zanella",
     "url": "https://github.com/nktznl"
   },
-  "homepage": "https://github.com/nktznl/suggest-skill",
-  "repository": "https://github.com/nktznl/suggest-skill",
+  "homepage": "https://github.com/nktznl/skillwise",
+  "repository": "https://github.com/nktznl/skillwise",
   "license": "MIT",
-  "keywords": ["agent-skills", "discovery", "security", "vetting", "claude-code"]
+  "keywords": [
+    "agent-skills",
+    "discovery",
+    "security",
+    "vetting",
+    "claude-code"
+  ]
 }

@@ -1,19 +1,14 @@
 {
-  "name": "skill-scout",
-  "description": "Real-time discovery and vetting of Agent Skills for the project you are actually working in",
-  "owner": {
-    "name": "Nikita Zanella",
-    "url": "https://github.com/nktznl"
-  },
+  "name": "skillwise",
+  "description": "Finds the Agent Skills your project is missing, and audits them before you trust them",
+  "owner": { "name": "Nikita Zanella", "url": "https://github.com/nktznl" },
   "plugins": [
     {
-      "name": "skill-scout",
+      "name": "skillwise",
       "source": "./",
-      "description": "Profiles the current project, searches the live Agent Skills ecosystem (GitHub, curated indexes, your own catalogs), vets candidates for safety, and installs the ones you approve",
+      "description": "Profiles the current project, searches the live Agent Skills ecosystem, audits candidates for safety, and installs the ones you approve",
       "version": "0.1.0",
-      "author": {
-        "name": "Nikita Zanella"
-      }
+      "author": { "name": "Nikita Zanella" }
     }
   ]
 }

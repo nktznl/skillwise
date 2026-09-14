@@ -1,0 +1,17 @@
+{
+  "name": "skillwise",
+  "version": "0.1.0",
+  "description": "Finds the Agent Skills your project is missing, and audits them before you trust them",
+  "type": "module",
+  "bin": { "skillwise": "bin/skillwise.js" },
+  "exports": { ".": "./src/index.js" },
+  "engines": { "node": ">=18.17" },
+  "files": ["bin", "src", "skills", "README.md", "LICENSE"],
+  "keywords": ["agent-skills", "claude-code", "skills", "security", "audit", "discovery"],
+  "repository": { "type": "git", "url": "git+https://github.com/nktznl/skillwise.git" },
+  "homepage": "https://github.com/nktznl/skillwise",
+  "bugs": { "url": "https://github.com/nktznl/skillwise/issues" },
+  "author": "Nikita Zanella (https://github.com/nktznl)",
+  "license": "MIT",
+  "scripts": { "eval": "node evals/run.js" }
+}
