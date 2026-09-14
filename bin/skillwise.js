@@ -4,6 +4,11 @@ import { discover } from '../src/index.js'
 import { auditSkill } from '../src/audit.js'
 import { checkbox, select, confirm, interactive } from '../src/prompt.js'
 import { spawn } from 'node:child_process'
+import { createRequire } from 'node:module'
+
+// npx resolves `latest` on every run, so a stale copy is rare - but when someone
+// reports odd behaviour, the first question is always which version they ran.
+const { version: VERSION } = createRequire(import.meta.url)('../package.json')
 
 const NO_COLOR = process.env.NO_COLOR || !process.stdout.isTTY
 const c = (code) => (s) => (NO_COLOR ? String(s) : `\x1b[${code}m${s}\x1b[0m`)
@@ -11,7 +16,7 @@ const bold = c(1); const dim = c(2); const red = c(31); const green = c(32)
 const yellow = c(33); const blue = c(34); const cyan = c(36)
 
 const HELP = `
-${bold('skillwise')} - find the Agent Skills your project is missing, and audit them before you trust them
+${bold('skillwise')} ${dim('v' + VERSION)} - find the Agent Skills your project is missing, and audit them before you trust them
 
 ${bold('Usage')}
   npx skillwise [suggest]              profile this project and recommend skills
@@ -26,6 +31,7 @@ ${bold('Options')}
       --json            machine-readable output
       --no-install      just print the report, never offer to install
   -h, --help            this text
+  -v, --version         print the version and exit
 
 ${bold('Notes')}
   An authenticated ${cyan('gh')} unlocks GitHub code search and much higher rate limits.
@@ -44,6 +50,7 @@ function parseArgs (argv) {
     else if (a === '--json') opts.json = true
     else if (a === '--no-install') opts.noInstall = true
     else if (a === '-h' || a === '--help') opts.help = true
+    else if (a === '-v' || a === '--version') opts.version = true
     else rest.push(a)
   }
   return { opts, rest }
@@ -243,6 +250,7 @@ necessarily contains the patterns it detects; a formatting skill that reads
 
 const { opts, rest } = parseArgs(process.argv.slice(2))
 const cmd = rest[0] && !rest[0].includes('/') ? rest.shift() : 'suggest'
+if (opts.version) { console.log(VERSION); process.exit(0) }
 if (opts.help) { console.log(HELP); process.exit(0) }
 
 try {

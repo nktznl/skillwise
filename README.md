@@ -166,11 +166,30 @@ npm view skillwise dist.attestations
 
 Nothing there means that version was published by hand.
 
-## Updating your own copy
+## Updating
+
+Nothing to do for the CLI. `npx skillwise` resolves `latest` from the registry on
+every run, so a new release reaches everyone the next time they run it. Check
+what you actually ran with:
 
 ```bash
-npx skillwise@latest     # npx caches aggressively; @latest forces a fresh fetch
-npx skills update        # updates the skill copy, project and global
+npx skillwise --version
+```
+
+If that lags behind the published version - a stale npx cache, an offline
+resolve - force a fresh fetch by naming it:
+
+```bash
+npx skillwise@latest
+```
+
+The skill copy is different: `npx skills add` pins it in `skills-lock.json`, so it
+stays where it was until you update it.
+
+```bash
+npx skills update            # both scopes
+npx skills update -g         # global only
+npx skills update -p         # this project only
 ```
 
 ## Requirements
